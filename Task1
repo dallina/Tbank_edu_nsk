@@ -1,1 +1,17 @@
+print("Введите начало и конец диапазона:")
+start, finish = map(int, input().split())
+if start > finish:
+    print("Ошибка: начало диапазона должно быть меньше конца")
+    start, finish = finish, start
+num1, num2 = 0, 1
+nums = []
 
+while num1 <= finish:
+    if num1 >= start:
+        nums.append(num1)
+    num1, num2 = num2, num1 + num2
+
+if nums:
+    print(" ".join(map(str, nums)))
+else:
+    print("В заданном диапазоне нет чисел Фибоначчи")
