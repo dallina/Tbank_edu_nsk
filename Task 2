@@ -1,1 +1,165 @@
+import json
+import os
 
+lib = 'lib.json'
+pages = 5
+
+def upload():
+    if not os.path.exists(lib):
+        return []
+    with open(lib, 'r', encoding='utf-8') as file:
+        try:
+            return json.load(file)
+        except json.JSONDecodeError:
+            return []
+
+def store_books(collection):
+    with open(lib, 'w', encoding='utf-8') as file:
+        json.dump(collection, file, ensure_ascii=False, indent=4)
+
+def gen_id(collection):
+    if not collection:
+        return 1
+    return max(entry['id'] for entry in collection) + 1
+
+def wait():
+    input("\nНажмите Enter для продолжения")
+
+def pages_screen(items, header="Каталог книг"):
+    if not items:
+        print("\nНичего не найдено.")
+        return
+    total_screens = (len(items) + pages - 1) // pages
+    current_screen = 1
+
+    while True:
+        print(f"\n{header} (Страница {current_screen} из {total_screens})")
+        start = (current_screen - 1) * pages
+        end = start + pages
+        for entry in items[start:end]:
+            rs = "V Прочитано" if entry['is_read'] else "X Не прочитано"
+            fav = "V" if entry.get('is_favorite') else "-"
+            print(f"№{entry['id']} - {fav} \"{entry['title']}\" — {entry['author']} - {rs}")
+
+        print(f"\nВведите: NEXT - Далее, BACK - Назад, EXIT - Выход")
+        act = input("Ваш выбор: ").strip().upper()
+
+        if act == 'NEXT' and current_screen < total_screens:
+            current_screen += 1
+        elif act == 'BACK' and current_screen > 1:
+            current_screen -= 1
+        elif act == 'EXIT':
+            break
+        else:
+            if act not in ['BACK', 'NEXT', 'EXIT']:
+                print("Некорректная команда.")
+
+
+def adds(collection):
+    print("\n+++ Добавление новой книги +++")
+    new_entry = {
+        "id": gen_id(collection),
+        "title": input("Название произведения: "),
+        "author": input("Автор: "),
+        "genre": input("Жанр: "),
+        "year": input("Год выпуска: "),
+        "description": input("Краткое описание: "),
+        "is_read": False,
+        "is_favorite": False}
+    collection.append(new_entry)
+    store_books(collection)
+    print(f"Книга успешно добавлена. ID: {new_entry['id']}")
+    wait()
+
+
+def browse_collection(collection):
+    print("\nСортировка: \n1.Без сортировки \n2.По названию \n3.По автору \n4.По году \n5.Фильтр по жанру")
+    option = input("Выберите вариант: ")
+    result_set = collection
+    if option == '2':
+        result_set = sorted(collection, key=lambda x: x['title'].lower())
+    elif option == '3':
+        result_set = sorted(collection, key=lambda x: x['author'].lower())
+    elif option == '4':
+        result_set = sorted(collection, key=lambda x: str(x['year']))
+    elif option == '5':
+        genre_filter = input("Укажите жанр: ").lower()
+        result_set = [item for item in collection if item['genre'].lower() == genre_filter]
+
+    pages_screen(result_set, "Просмотр коллекции")
+
+
+def find_books(collection):
+    search_text = input("\nПоисковый запрос: ").lower()
+    matches = [item for item in collection if
+               search_text in item['title'].lower() or search_text in item['author'].lower() or search_text in item[
+                   'description'].lower()]
+    pages_screen(matches, f"Результаты поиска: '{search_text}'")
+
+
+def edit_book_record(collection):
+    try:
+        book_id = int(input("\nВведите ID книги для редактирования: "))
+    except ValueError:
+        print("Ошибка: ID должен быть числовым значением.")
+        return wait()
+
+    target = next((item for item in collection if item['id'] == book_id), None)
+    if not target:
+        print("Книга не найдена.")
+        return wait()
+
+    print(f"\nВыбрано: {target['title']}")
+    print("1. Изменить статус прочтения")
+    print("2. Добавить/убрать из избранного")
+    print("3. Удалить запись")
+    print("0. Отмена")
+    act = input("Действие: ")
+
+    if act == '1':
+        target['is_read'] = not target['is_read']
+        print("Статус прочтения обновлен.")
+    elif act == '2':
+        target['is_favorite'] = not target.get('is_favorite', False)
+        print("Статус избранного обновлен.")
+    elif act == '3':
+        collection.remove(target)
+        print("Запись удалена.")
+    store_books(collection)
+    wait()
+
+
+def show_favorites(collection):
+    favorites = [item for item in collection if item.get('is_favorite')]
+    pages_screen(favorites, "Избранные произведения")
+
+print("+" * 20)
+print("Т - Библиотека")
+input("Добро пожаловать! Нажмите Enter чтобы продолжить :)")
+while True:
+    current_collection = upload()
+    print("Доступные действия:")
+    print("1. Добавить книгу")
+    print("2. Просмотреть всю коллекцию книг")
+    print("3. Поиск")
+    print("4. Редактирование по ID")
+    print("5. Избранное")
+    print("0. Завершить работу")
+
+    user_choice = input("\nКоманда: ")
+
+    if user_choice == '1':
+        adds(current_collection)
+    elif user_choice == '2':
+        browse_collection(current_collection)
+    elif user_choice == '3':
+        find_books(current_collection)
+    elif user_choice == '4':
+        show_favorites(current_collection)
+    elif user_choice == '5':
+        edit_book_record(current_collection)
+    elif user_choice == '0':
+        print("Спасибо, что выбрали нас! Удачи!")
+        break
+    else:
+        print("Неверный выбор. Попробуйте еще раз")
